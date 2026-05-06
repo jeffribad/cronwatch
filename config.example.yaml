@@ -1,0 +1,30 @@
+# cronwatch example configuration
+
+# How often cronwatch checks job state (default: 60s)
+check_interval: 60s
+
+alerts:
+  # Email address to notify on failure or missed run
+  email: ops@example.com
+
+  # Slack incoming webhook URL (optional)
+  slack_url: https://hooks.slack.com/services/XXX/YYY/ZZZ
+
+jobs:
+  # Daily database backup — must complete within 30 minutes
+  - name: db-backup
+    schedule: "0 3 * * *"
+    timeout: 30m
+    command: /usr/local/bin/db-backup.sh
+
+  # Hourly cache warm-up
+  - name: cache-warmup
+    schedule: "0 * * * *"
+    timeout: 5m
+    command: /usr/local/bin/warmup.sh
+
+  # Weekly report generation every Sunday at midnight
+  - name: weekly-report
+    schedule: "0 0 * * 0"
+    timeout: 1h
+    command: /usr/local/bin/generate-report.sh
