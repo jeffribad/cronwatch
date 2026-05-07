@@ -1,68 +1,61 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
-// Job defines a single cron job to monitor.
+// Job describes a single cron job to monitor.
 type Job struct {
-	Name     string        `yaml:"name"`
-	Schedule string        `yaml:"schedule"`
-	Timeout  time.Duration `yaml:"timeout"`
-	Command  string        `yaml:"command"`
-}
-
-// AlertConfig holds alerting backend settings.
-type AlertConfig struct {
-	Email   string `yaml:"email"`
-	SlackURL string `yaml:"slack_url"`
+	Name            string `yaml:"name"`
+	Schedule        string `yaml:"schedule"`
+	IntervalMinutes int    `yaml:"interval_minutes"`
+	AlertEmail      string `yaml:"alert_email"`
 }
 
 // Config is the top-level configuration structure.
 type Config struct {
-	CheckInterval time.Duration `yaml:"check_interval"`
-	Alerts        AlertConfig   `yaml:"alerts"`
-	Jobs          []Job         `yaml:"jobs"`
+	CheckIntervalSeconds int    `yaml:"check_interval_seconds"`
+	LogFile              string `yaml:"log_file"`
+	Jobs                 []Job  `yaml:"jobs"`
 }
+
+const defaultCheckInterval = 60
 
 // Load reads and parses the YAML config file at the given path.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading config file: %w", err)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("config file not found: %s", path)
+		}
+		return nil, fmt.Errorf("reading config: %w", err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parsing config file: %w", err)
+		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
-	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+	if len(cfg.Jobs) == 0 {
+		return nil, errors.New("config must define at least one job")
 	}
 
-	if cfg.CheckInterval == 0 {
-		cfg.CheckInterval = 60 * time.Second
+	if cfg.CheckIntervalSeconds <= 0 {
+		cfg.CheckIntervalSeconds = defaultCheckInterval
+	}
+
+	for i, j := range cfg.Jobs {
+		if j.Name == "" {
+			return nil, fmt.Errorf("job[%d] missing name", i)
+		}
+		if j.IntervalMinutes <= 0 {
+			return nil, fmt.Errorf("job %q: interval_minutes must be > 0", j.Name)
+		}
 	}
 
 	return &cfg, nil
-}
-
-func (c *Config) validate() error {
-	if len(c.Jobs) == 0 {
-		return fmt.Errorf("at least one job must be defined")
-	}
-	for i, job := range c.Jobs {
-		if job.Name == "" {
-			return fmt.Errorf("job[%d]: name is required", i)
-		}
-		if job.Schedule == "" {
-			return fmt.Errorf("job %q: schedule is required", job.Name)
-		}
-	}
-	return nil
 }
