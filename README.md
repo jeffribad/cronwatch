@@ -54,6 +54,7 @@ cronwatch will send an alert if the job exits with a non-zero status, exceeds it
 |-------|-------------|
 | `schedule` | Standard cron expression for the expected run time |
 | `timeout` | Maximum allowed runtime before alerting |
+| `grace` | Extra time allowed after the scheduled start before a missed-run alert is triggered (default: `5m`) |
 | `alert` | Notification target (email, Slack, PagerDuty) |
 
 ## License
