@@ -51,6 +51,14 @@ func TestDispatcher_Dispatch_OneFailsContinues(t *testing.T) {
 	}
 }
 
+func TestDispatcher_Dispatch_NoNotifiers(t *testing.T) {
+	d := alert.NewDispatcher(newLogger())
+
+	if err := d.Dispatch("subj", "body"); err != nil {
+		t.Fatalf("expected no error with zero notifiers, got %v", err)
+	}
+}
+
 func TestDispatcher_AlertJobFailure(t *testing.T) {
 	n := &stubNotifier{}
 	d := alert.NewDispatcher(newLogger(), n)
