@@ -63,6 +63,16 @@ type historyEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// toHistoryEntry converts a history.Entry to the API historyEntry type.
+func toHistoryEntry(e history.Entry) historyEntry {
+	return historyEntry{
+		JobName:   e.JobName,
+		Success:   e.Success,
+		Message:   e.Message,
+		Timestamp: e.Timestamp,
+	}
+}
+
 // History returns all stored execution history.
 func (h *Handler) History(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -77,12 +87,7 @@ func (h *Handler) History(w http.ResponseWriter, r *http.Request) {
 	out := make(map[string][]historyEntry, len(all))
 	for job, entries := range all {
 		for _, e := range entries {
-			out[job] = append(out[job], historyEntry{
-				JobName:   e.JobName,
-				Success:   e.Success,
-				Message:   e.Message,
-				Timestamp: e.Timestamp,
-			})
+			out[job] = append(out[job], toHistoryEntry(e))
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
