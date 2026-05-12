@@ -2,6 +2,7 @@ package history
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -9,78 +10,87 @@ import (
 
 // Entry represents a single recorded execution of a cron job.
 type Entry struct {
-	JobName   string    `json:"job_name"`
-	Success   bool      `json:"success"`
-	Timestamp time.Time `json:"timestamp"`
-	Message   string    `json:"message,omitempty"`
+	JobName   string        `json:"job_name"`
+	Success   bool          `json:"success"`
+	Message   string        `json:"message,omitempty"`
+	Duration  time.Duration `json:"duration_ns,omitempty"`
+	Timestamp time.Time     `json:"timestamp"`
 }
 
-// Store persists job run history to a JSON file.
+// Store persists job execution history to a JSON file.
 type Store struct {
 	mu      sync.RWMutex
 	path    string
-	entries []Entry
+	records map[string][]Entry
 }
 
-// NewStore creates a Store backed by the given file path.
-// Existing entries are loaded from disk if the file exists.
+// NewStore loads or initialises a history store at the given path.
 func NewStore(path string) (*Store, error) {
-	s := &Store{path: path}
-	if err := s.load(); err != nil && !os.IsNotExist(err) {
-		return nil, err
+	s := &Store{path: path, records: make(map[string][]Entry)}
+	data, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("history: read %s: %w", path, err)
+	}
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &s.records); err != nil {
+			return nil, fmt.Errorf("history: parse %s: %w", path, err)
+		}
 	}
 	return s, nil
 }
 
-// Record appends a new entry and flushes to disk.
-func (s *Store) Record(e Entry) error {
+// Record appends an entry for the named job and flushes to disk.
+func (s *Store) Record(jobName string, e Entry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.entries = append(s.entries, e)
-	return s.save()
+	s.records[jobName] = append(s.records[jobName], e)
+	return s.flush()
 }
 
-// Last returns the most recent entry for the given job name, or false if none.
+// Last returns the most recent entry for the given job, or false if none.
 func (s *Store) Last(jobName string) (Entry, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for i := len(s.entries) - 1; i >= 0; i-- {
-		if s.entries[i].JobName == jobName {
-			return s.entries[i], true
-		}
+	entries := s.records[jobName]
+	if len(entries) == 0 {
+		return Entry{}, false
 	}
-	return Entry{}, false
+	return entries[len(entries)-1], true
 }
 
-// All returns a copy of all stored entries.
-func (s *Store) All() []Entry {
+// All returns a shallow copy of all recorded entries keyed by job name.
+func (s *Store) All() (map[string][]Entry, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	out := make([]Entry, len(s.entries))
-	copy(out, s.entries)
-	return out
+	out := make(map[string][]Entry, len(s.records))
+	for k, v := range s.records {
+		cp := make([]Entry, len(v))
+		copy(cp, v)
+		out[k] = cp
+	}
+	return out, nil
 }
 
-func (s *Store) load() error {
-	f, err := os.Open(s.path)
-	if err != nil {
-		return err
+// Replace overwrites the stored entries for a single job and flushes to disk.
+func (s *Store) Replace(jobName string, entries []Entry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(entries) == 0 {
+		delete(s.records, jobName)
+	} else {
+		s.records[jobName] = entries
 	}
-	defer f.Close()
-	return json.NewDecoder(f).Decode(&s.entries)
+	return s.flush()
 }
 
-func (s *Store) save() error {
-	f, err := os.CreateTemp("", "cronwatch-history-*")
+// flush writes the current records to disk. Caller must hold s.mu.
+func (s *Store) flush() error {
+	data, err := json.MarshalIndent(s.records, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("history: marshal: %w", err)
 	}
-	tmpName := f.Name()
-	if err := json.NewEncoder(f).Encode(s.entries); err != nil {
-		f.Close()
-		os.Remove(tmpName)
-		return err
+	if err := os.WriteFile(s.path, data, 0o644); err != nil {
+		return fmt.Errorf("history: write %s: %w", s.path, err)
 	}
-	f.Close()
-	return os.Rename(tmpName, s.path)
+	return nil
 }
