@@ -34,6 +34,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("history: %v", err)
 	}
+	defer store.Close()
 
 	var notifiers []alert.Notifier
 	if cfg.WebhookURL != "" {
