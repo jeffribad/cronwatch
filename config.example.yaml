@@ -1,30 +1,51 @@
 # cronwatch example configuration
+# Copy to config.yaml and adjust for your environment.
 
-# How often cronwatch checks job state (default: 60s)
-check_interval: 60s
-
-alerts:
-  # Email address to notify on failure or missed run
-  email: ops@example.com
-
-  # Slack incoming webhook URL (optional)
-  slack_url: https://hooks.slack.com/services/XXX/YYY/ZZZ
+check_interval: 60  # seconds between missed-run checks
 
 jobs:
-  # Daily database backup — must complete within 30 minutes
-  - name: db-backup
-    schedule: "0 3 * * *"
-    timeout: 30m
-    command: /usr/local/bin/db-backup.sh
+  - name: daily-backup
+    schedule: "0 2 * * *"   # cron expression
+    timeout: 3600            # seconds; alert if no heartbeat within this window
 
-  # Hourly cache warm-up
-  - name: cache-warmup
+  - name: hourly-sync
     schedule: "0 * * * *"
-    timeout: 5m
-    command: /usr/local/bin/warmup.sh
+    timeout: 300
 
-  # Weekly report generation every Sunday at midnight
-  - name: weekly-report
-    schedule: "0 0 * * 0"
-    timeout: 1h
-    command: /usr/local/bin/generate-report.sh
+  - name: nightly-report
+    schedule: "30 23 * * *"
+    timeout: 1800
+
+alerts:
+  webhook:
+    url: "https://hooks.example.com/cronwatch"
+
+  slack:
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
+  email:
+    smtp_host: "smtp.example.com"
+    smtp_port: 587
+    from: "cronwatch@example.com"
+    to:
+      - "ops@example.com"
+    username: "cronwatch@example.com"
+    password: "secret"
+
+  pagerduty:
+    integration_key: "your-pagerduty-integration-key"
+
+  opsgenie:
+    api_key: "your-opsgenie-api-key"
+
+  victorops:
+    routing_key: "your-victorops-routing-key"
+
+  teams:
+    webhook_url: "https://outlook.office.com/webhook/XXX"
+
+retention:
+  max_age_days: 30   # history entries older than this are purged
+
+api:
+  addr: ":8080"     # address for the HTTP status/metrics API
