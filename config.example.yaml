@@ -1,24 +1,20 @@
 # cronwatch example configuration
-# Copy to config.yaml and adjust for your environment.
+# Copy to config.yaml and adjust as needed.
 
-check_interval: 60  # seconds between missed-run checks
+check_interval: 60s
 
 jobs:
   - name: daily-backup
-    schedule: "0 2 * * *"   # cron expression
-    timeout: 3600            # seconds; alert if no heartbeat within this window
+    schedule: "0 2 * * *"
+    max_delay: 10m
 
   - name: hourly-sync
     schedule: "0 * * * *"
-    timeout: 300
-
-  - name: nightly-report
-    schedule: "30 23 * * *"
-    timeout: 1800
+    max_delay: 5m
 
 alerts:
   webhook:
-    url: "https://hooks.example.com/cronwatch"
+    url: "https://hooks.example.com/notify"
 
   slack:
     webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
@@ -33,19 +29,28 @@ alerts:
     password: "secret"
 
   pagerduty:
-    integration_key: "your-pagerduty-integration-key"
+    routing_key: "your-pagerduty-routing-key"
 
   opsgenie:
     api_key: "your-opsgenie-api-key"
 
   victorops:
     routing_key: "your-victorops-routing-key"
+    rest_endpoint_url: "https://alert.victorops.com/integrations/..."
 
   teams:
-    webhook_url: "https://outlook.office.com/webhook/XXX"
+    webhook_url: "https://outlook.office.com/webhook/..."
 
-retention:
-  max_age_days: 30   # history entries older than this are purged
+  discord:
+    webhook_url: "https://discord.com/api/webhooks/..."
+
+  telegram:
+    bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+    chat_id: "-1001234567890"
 
 api:
-  addr: ":8080"     # address for the HTTP status/metrics API
+  listen: ":8080"
+
+retention:
+  max_age: 720h   # 30 days
+  purge_interval: 1h
