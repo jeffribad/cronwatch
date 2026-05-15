@@ -62,3 +62,45 @@ func TestEmailNotifier_Send_DialError(t *testing.T) {
 		t.Fatal("expected dial error")
 	}
 }
+
+func TestEmailNotifier_Send_MessageContainsSubjectAndBody(t *testing.T) {
+	var capturedMsg []byte
+
+	cfg := notify.SMTPConfig{
+		Host: "localhost", Port: 25,
+		From: "alerts@example.com",
+		To:   []string{"ops@example.com"},
+	}
+	n := notify.NewEmailNotifier(cfg)
+	n.OverrideDial(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		capturedMsg = msg
+		return nil
+	})
+
+	subject := "cron failed"
+	body := "job backup missed"
+	if err := n.Send(subject, body); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	msgStr := string(capturedMsg)
+	if !contains(msgStr, subject) {
+		t.Errorf("expected message to contain subject %q, got: %s", subject, msgStr)
+	}
+	if !contains(msgStr, body) {
+		t.Errorf("expected message to contain body %q, got: %s", body, msgStr)
+	}
+}
+
+// contains is a simple helper to check substring presence.
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(func() bool {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+			return false
+		})())
+}
