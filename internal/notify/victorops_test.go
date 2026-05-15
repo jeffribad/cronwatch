@@ -89,6 +89,27 @@ func TestVictorOpsNotifier_Send_PayloadContents(t *testing.T) {
 	}
 }
 
+// TestVictorOpsNotifier_Send_ContentTypeHeader verifies that the notifier sets
+// the correct Content-Type header on outgoing requests.
+func TestVictorOpsNotifier_Send_ContentTypeHeader(t *testing.T) {
+	var contentType string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType = r.Header.Get("Content-Type")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	n := notify.NewVictorOpsNotifier("k", "r")
+	notify.SetVictorOpsBaseURL(n, ts.URL)
+
+	if err := n.Send("job", "body"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("expected Content-Type application/json, got %q", contentType)
+	}
+}
+
 func TestVictorOpsNotifier_DefaultBaseURL(t *testing.T) {
 	n := notify.NewVictorOpsNotifier("k", "r")
 	// Just ensure construction succeeds and Send returns an error (no real server).
