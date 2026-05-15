@@ -88,3 +88,18 @@ func TestDispatcher_AlertMissedRun(t *testing.T) {
 		t.Errorf("expected interval in alert: %q", n.calls[0])
 	}
 }
+
+func TestDispatcher_Dispatch_AllFail(t *testing.T) {
+	a := &stubNotifier{err: errors.New("timeout")}
+	b := &stubNotifier{err: errors.New("refused")}
+	d := alert.NewDispatcher(newLogger(), a, b)
+
+	err := d.Dispatch("subj", "body")
+	if err == nil {
+		t.Fatal("expected error when all notifiers fail")
+	}
+	// both notifiers should have been attempted
+	if len(a.calls) != 1 || len(b.calls) != 1 {
+		t.Errorf("expected both notifiers to be attempted, got a=%d b=%d", len(a.calls), len(b.calls))
+	}
+}
