@@ -89,3 +89,18 @@ func (m *Monitor) State(name string) (JobState, bool) {
 	}
 	return *s, true
 }
+
+// Reset clears the recorded state for a job, as if it had never been seen.
+// This is useful when a job is rescheduled or its history should be discarded.
+func (m *Monitor) Reset(name string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.states[name]
+	if !ok {
+		return false
+	}
+	state.LastSeen = time.Time{}
+	state.Missed = false
+	state.FailCount = 0
+	return true
+}
