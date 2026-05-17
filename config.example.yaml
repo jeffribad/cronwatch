@@ -6,15 +6,17 @@ check_interval: 60s
 jobs:
   - name: daily-backup
     schedule: "0 2 * * *"
-    max_delay: 10m
+    max_runtime: 30m
+    alert_after: 5m
 
-  - name: hourly-sync
+  - name: hourly-cleanup
     schedule: "0 * * * *"
-    max_delay: 5m
+    max_runtime: 5m
+    alert_after: 2m
 
 alerts:
   webhook:
-    url: "https://hooks.example.com/notify"
+    url: "https://hooks.example.com/cronwatch"
 
   slack:
     webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
@@ -29,14 +31,14 @@ alerts:
     password: "secret"
 
   pagerduty:
-    routing_key: "your-pagerduty-routing-key"
+    integration_key: "your-pagerduty-integration-key"
 
   opsgenie:
     api_key: "your-opsgenie-api-key"
 
   victorops:
     routing_key: "your-victorops-routing-key"
-    rest_endpoint_url: "https://alert.victorops.com/integrations/..."
+    rest_endpoint: "https://alert.victorops.com/integrations/generic/..."
 
   teams:
     webhook_url: "https://outlook.office.com/webhook/..."
@@ -45,12 +47,22 @@ alerts:
     webhook_url: "https://discord.com/api/webhooks/..."
 
   telegram:
-    bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-    chat_id: "-1001234567890"
+    bot_token: "your-telegram-bot-token"
+    chat_id: "your-chat-id"
+
+  gotify:
+    url: "https://gotify.example.com"
+    token: "your-gotify-token"
+    priority: 5
+
+  mattermost:
+    webhook_url: "https://mattermost.example.com/hooks/your-token"
+    channel: "#ops-alerts"
+    username: "cronwatch"
+
+history:
+  path: "/var/lib/cronwatch/history.json"
+  retention: 720h   # 30 days
 
 api:
   listen: ":8080"
-
-retention:
-  max_age: 720h   # 30 days
-  purge_interval: 1h
